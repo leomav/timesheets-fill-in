@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Timesheet Filler</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>Timesheet Filler</h1>
+  <p class="sub">Drop the empty monthly timesheets, type the hours per work package, download the filled files. Everything runs in your browser &mdash; the files never leave your computer.</p>
+</header>
+
+<div id="engine" class="engine loading">Starting the Excel engine&hellip;</div>
+
+<main id="app" hidden>
+  <label class="dropzone" id="dropzone">
+    <input type="file" id="files" accept=".xlsx" multiple hidden>
+    <strong>Choose timesheet files</strong> or drop them here (.xlsx)
+  </label>
+  <div id="cards"></div>
+</main>
+
+<footer>
+  <p>Hours go in the <em>Research</em> column, the WP label in the <em>Comments</em> column, spread evenly across working days (max 8h/day), skipping weekends and pre-marked holidays. The workbook's formulas and integrity token are preserved.</p>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

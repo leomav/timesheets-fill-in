@@ -1,0 +1,6 @@
+# Real timesheets contain personal data (names, VAT / tax IDs) — never commit them.
+cv_examples/
+*.xlsx
+
+# macOS
+.DS_Store
