@@ -49,6 +49,44 @@ def _even_spread(hours, ndays):
     return [base + (1 if i < rem else 0) for i in range(ndays)]
 
 
+def _allocate_days(hours_list, total_days, cap):
+    """Decide how many working days each work package gets.
+
+    Days are handed out to fill *all* available working days when possible, so
+    the hours land spread thin-and-even rather than piled onto the first days.
+    Each package gets between ceil(h/cap) days (so no day exceeds the cap) and
+    h days (so no day drops to zero hours). Extra days go to the packages with
+    the largest fair-share remainder.
+    """
+    n = len(hours_list)
+    total_hours = sum(hours_list)
+    if total_hours == 0:
+        return [0] * n
+
+    exact = [h / total_hours * total_days for h in hours_list]
+    days = [max(math.ceil(h / cap), 1) if h else 0 for h in hours_list]
+
+    remaining = total_days - sum(days)
+    # If we've already committed more days than exist, callers guard against the
+    # infeasible case earlier; just return the minimum feasible plan.
+    if remaining <= 0:
+        return days
+
+    order = sorted(range(n), key=lambda i: exact[i] - int(exact[i]), reverse=True)
+    while remaining > 0:
+        progressed = False
+        for i in order:
+            if remaining <= 0:
+                break
+            if days[i] < hours_list[i]:  # keep at least 1h per day
+                days[i] += 1
+                remaining -= 1
+                progressed = True
+        if not progressed:  # every package is already at 1h/day; stop
+            break
+    return days
+
+
 def analyze(data: bytes) -> dict:
     """Read a workbook and report month/year and how many working days it has."""
     wb = openpyxl.load_workbook(io.BytesIO(data))
@@ -81,24 +119,25 @@ def fill(data: bytes, allocations: list) -> bytes:
     ws = wb.active
     rows = _workday_rows(ws)
 
-    plan = []
+    labels, hours_list = [], []
     for a in allocations:
         hours = int(a["hours"])
         if hours <= 0:
             continue
-        ndays = math.ceil(hours / DAILY_CAP)
-        plan.append((str(a["wp"]).strip(), hours, ndays))
+        labels.append(str(a["wp"]).strip())
+        hours_list.append(hours)
 
-    needed = sum(d for _, _, d in plan)
-    if needed > len(rows):
-        total = sum(h for _, h, _ in plan)
+    total = sum(hours_list)
+    if total > len(rows) * DAILY_CAP:
         raise ValueError(
-            f"Needs {needed} working days ({total}h) but the month only has "
-            f"{len(rows)} available ({len(rows) * DAILY_CAP}h capacity)."
+            f"Needs {total}h but the month only has {len(rows)} working days "
+            f"({len(rows) * DAILY_CAP}h capacity)."
         )
 
+    day_counts = _allocate_days(hours_list, len(rows), DAILY_CAP)
+
     idx = 0
-    for wp, hours, ndays in plan:
+    for wp, hours, ndays in zip(labels, hours_list, day_counts):
         block = rows[idx:idx + ndays]
         idx += ndays
         for row, hrs in zip(block, _even_spread(hours, ndays)):

@@ -62,6 +62,21 @@ def test_multi_wp_blocks():
     print(f"  multi-WP: WP3 on {len(wp3_rows)} days, WP4 on {len(wp4_rows)} days, separate")
 
 
+def test_spreads_across_all_days():
+    # A single WP whose hours exceed the number of working days should land on
+    # EVERY working day (no gaps), spread thin and even -- not piled at 8h/day.
+    src = open(EMPTY[1], "rb").read()  # June: 21 workdays
+    info = fill.analyze(src)
+    out = fill.fill(src, [{"wp": "WP3", "hours": 140}])
+    ws = _sheet(out)
+    filled = [ws.cell(r, fill.COL_RESEARCH).value for r in range(13, 44)
+              if ws.cell(r, fill.COL_RESEARCH).value]
+    assert len(filled) == info["workdays"], (len(filled), info["workdays"])
+    assert sum(filled) == 140
+    assert max(filled) - min(filled) <= 1, filled  # evenly balanced
+    print(f"  spread 140h over all {len(filled)} June workdays: {sorted(set(filled))}")
+
+
 def test_overflow_guard():
     src = open(EMPTY[0], "rb").read()
     try:
@@ -76,5 +91,6 @@ if __name__ == "__main__":
     test_analyze()
     test_fill_totals_and_token()
     test_multi_wp_blocks()
+    test_spreads_across_all_days()
     test_overflow_guard()
     print("all tests passed")
